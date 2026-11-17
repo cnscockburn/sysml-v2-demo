@@ -1,0 +1,7 @@
+{
+  "files.associations": { "*.sysml": "sysml", "*.kerml": "sysml" },
+  "sysml.format.indentSize": 4,
+  "sysml.validation.enabled": true,
+  "sysml.workspace.preloadOnOpen": "always",
+  "[sysml]": { "editor.tabSize": 4, "editor.insertSpaces": true }
+}
