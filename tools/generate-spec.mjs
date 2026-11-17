@@ -69,7 +69,7 @@ async function main() {
     documentNumber: config.documentNumber ?? 'SDS-001',
     revision: commit ? `rev ${commit}${dirty}` : 'uncontrolled',
   };
-  const doc = buildDocument(model, config, meta);
+  const doc = await buildDocument(model, config, meta);
   meta.coverRows = [
     ['Document number', meta.documentNumber],
     ['Revision', meta.revision],
@@ -91,7 +91,6 @@ async function main() {
     return pathToFileURL(abs).href;
   };
   const html = renderHtml(doc, meta, {
-    mermaidSrc: asset('mermaid/dist/mermaid.min.js'),
     pagedSrc: asset('pagedjs/dist/paged.js'),
   });
   writeFileSync(htmlPath, html);

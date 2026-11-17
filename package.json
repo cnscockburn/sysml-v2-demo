@@ -7,7 +7,7 @@
     "spec": "node tools/generate-spec.mjs"
   },
   "devDependencies": {
-    "mermaid": "^11.17.2",
+    "elkjs": "^0.9.3",
     "pagedjs": "^0.4.3",
     "puppeteer-core": "^24.43.1"
   }

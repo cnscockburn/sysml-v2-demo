@@ -38,6 +38,7 @@ import {
   taxonomyDiagram,
   useCaseDiagram,
 } from './diagrams.mjs';
+import { renderDiagram } from './sysml-svg.mjs';
 
 // ---------------------------------------------------------------------------
 // HTML helpers
@@ -95,6 +96,7 @@ class DocBuilder {
     this.appendix = false;
     this.fig = 0;
     this.tab = 0;
+    this.figures = [];
   }
 
   add(html) {
@@ -123,10 +125,12 @@ class DocBuilder {
     if (html) this.add(`<p>${html}</p>`);
   }
 
-  figure(mermaid, caption, { wide = false } = {}) {
-    if (!mermaid) return;
+  /** Queue a SysML v2 diagram description; it is rendered to SVG in html(). */
+  figure(spec, caption, { wide = false } = {}) {
+    if (!spec) return;
     const n = ++this.fig;
-    const fig = `<figure class="diagram${wide ? ' wide' : ''}"><pre class="mmd">${esc(mermaid)}</pre><figcaption><b>Figure ${n}.</b> ${esc(caption)}</figcaption></figure>`;
+    this.figures.push(spec);
+    const fig = `<figure class="diagram${wide ? ' wide' : ''}"><!--FIGURE:${this.figures.length - 1}--><figcaption><b>Figure ${n}.</b> ${esc(caption)}</figcaption></figure>`;
     this.add(fig);
   }
 
@@ -148,8 +152,25 @@ class DocBuilder {
     this.add(`<table class="kv"><tbody>${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`).join('')}</tbody></table>`);
   }
 
-  html() {
-    return this.out.join('\n');
+  /** Final HTML with every queued diagram rendered to inline SysML v2 SVG. */
+  async html() {
+    // Structural diagrams may be laid out either way; keep the direction whose
+    // drawing fits an A4 portrait text block (≈174 × 215 mm) at the larger scale.
+    const fit = (svg) => {
+      const [, w, h] = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/).map(Number);
+      return Math.min(1, 640 / w, 800 / h);
+    };
+    const ALT = { RIGHT: 'DOWN', DOWN: 'RIGHT', LEFT: 'UP', UP: 'LEFT' };
+    const svgs = [];
+    for (const spec of this.figures) {
+      let svg = await renderDiagram(spec);
+      if (spec.flexibleDirection && fit(svg) < 1) {
+        const alt = await renderDiagram({ ...spec, direction: ALT[spec.direction ?? 'RIGHT'] });
+        if (fit(alt) > fit(svg) * 1.15) svg = alt;
+      }
+      svgs.push(svg);
+    }
+    return this.out.join('\n').replace(/<!--FIGURE:(\d+)-->/g, (_, i) => svgs[Number(i)]);
   }
 }
 
@@ -390,12 +411,19 @@ function introduction(doc, model, A, meta) {
     'Model packages',
     { cls: 'compact', widths: ['24%', '36%', '40%'] },
   );
-  doc.heading(2, 'Diagram conventions');
+  doc.heading(2, 'Diagram notation');
+  doc.p(
+    'All diagrams use the SysML v2 standard graphical notation and are framed as the standard views ' +
+      '(General, Interconnection, Action Flow, State Transition and Use Case views), with the view name in the frame tab.',
+  );
   doc.add(`<ul>
-    <li>Blocks show <code>usage : Definition [multiplicity]</code>. Dashed grey blocks are external to the system.</li>
-    <li>Interconnection edges are labelled with the items carried by the connected ports; <code>×n</code> marks n parallel connections, «Name» marks a typed interface, and double-headed arrows mark bidirectional interfaces.</li>
-    <li>In activity diagrams, solid arrows are control flow (with guards in brackets) and dotted arrows are item flows.</li>
-    <li>In state diagrams, transitions are labelled <code>Trigger [guard]</code>.</li>
+    <li><b>Definitions</b> are square-cornered boxes headed <code>«kind def» Name</code> (italic if abstract). <b>Usages</b> are round-cornered boxes headed <code>«kind» name : Definition [multiplicity]</code>.</li>
+    <li>Compartments (<i>parts</i>, <i>attributes</i>, <i>state actions</i>) list features beneath the header.</li>
+    <li><b>Composition</b> is a line with a filled diamond at the owner. <b>Specialization</b> is a line with a hollow triangle at the general definition.</li>
+    <li><b>Ports</b> are small squares on the owner's boundary, labelled <code>name : PortDef</code>; <code>~PortDef</code> is the conjugate. Connections are solid lines between ports, labelled <code>name : InterfaceDef</code> for interfaces. A part with many sub-parts is shown closed, with one aggregated port <code>*.port</code> and a <code>×n</code> count.</li>
+    <li><b>Action flow</b>: a filled circle is <i>start</i>, a bullseye is <i>done</i>, a diamond is a decision or merge. Dashed open arrows are successions (guards in brackets); solid open arrows between parameter squares are item flows.</li>
+    <li><b>State transition</b>: the filled circle marks the initial state; transitions are labelled <code>trigger [guard] / effect</code>.</li>
+    <li><b>Use cases</b>: actors are stick figures; <code>«include»</code> arrows point to included use cases.</li>
   </ul>`);
 }
 
@@ -407,8 +435,7 @@ function operationalConcept(doc, model, A) {
     doc.heading(2, `Operational context: ${humanize(ct.name)}`);
     doc.add(docHtml(ct.documentation));
     doc.add(docHtml(c.documentation));
-    const external = (p, t) => t !== A.system;
-    doc.figure(interconnectionDiagram(model, ct, { externalTest: external }), `Operational context (${ct.name})`, { wide: true });
+    doc.figure(interconnectionDiagram(model, ct), `Operational context (${ct.name})`, { wide: true });
     doc.table(
       ['Participant', 'Definition', 'Mult.', 'Role'],
       model.members(ct, 'part').map((p) => {
@@ -948,7 +975,7 @@ function appendices(doc, model, A) {
 // Entry point
 // ---------------------------------------------------------------------------
 
-export function buildDocument(model, config, meta) {
+export async function buildDocument(model, config, meta) {
   const A = analyse(model, config);
   const rootDoc = cleanDoc(A.root?.documentation);
   const derivedTitle = (rootDoc.split('\n')[0] ?? '').split(/[:.]/)[0].trim() || A.root?.name || 'System';
@@ -968,7 +995,7 @@ export function buildDocument(model, config, meta) {
   appendices(doc, model, A);
 
   return {
-    body: doc.html(),
+    body: await doc.html(),
     toc: doc.toc,
     stats: {
       requirements: A.reqDefs.length,

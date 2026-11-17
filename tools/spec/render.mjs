@@ -1,7 +1,7 @@
 // Wraps the generated body in a print-ready HTML page (cover, contents, page
-// styles) and prints it to PDF with headless Chrome or Edge: Mermaid renders
-// the diagrams, then Paged.js paginates (page numbers, running headers,
-// landscape pages for wide figures, contents page numbers).
+// styles) and prints it to PDF with headless Chrome or Edge. Diagrams arrive as
+// inline SysML v2 SVG; the page sizes them (rotating very wide ones onto their
+// own page), then Paged.js paginates (page numbers, running headers, contents).
 
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -90,11 +90,10 @@ figure.rotated .rot { position: absolute; top: 0; left: 0; width: 238mm; height:
 figure.rotated .rot svg { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; }
 figure.rotated .rot figcaption { flex: 0 0 auto; }
 figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 2mm; }
-pre.mmd { font-size: 0; margin: 0; }
 .diagram-error { border: 1px solid #b3261e; color: #b3261e; padding: 3mm; font-size: 8.5pt; text-align: left; white-space: pre-wrap; }
 `;
 
-export function renderHtml({ body, toc }, meta, { mermaidSrc, pagedSrc }) {
+export function renderHtml({ body, toc }, meta, { pagedSrc }) {
   const tocHtml = toc
     .map((e) => `<li class="l${e.level}"><a href="#${e.id}"><span class="n">${esc(e.num)}</span><span class="t">${esc(e.title)}</span></a></li>`)
     .join('\n');
@@ -105,8 +104,6 @@ export function renderHtml({ body, toc }, meta, { mermaidSrc, pagedSrc }) {
 <meta charset="utf-8">
 <title>${esc(meta.title)}: ${esc(meta.subtitle)}</title>
 <style>${STYLE}</style>
-<script src="${mermaidSrc}"></script>
-<script>mermaid.initialize({ startOnLoad: false });</script>
 <script>window.PagedConfig = { auto: false };</script>
 <script src="${pagedSrc}"></script>
 </head>
@@ -129,7 +126,7 @@ ${body}
 // Size a rendered SVG for an A4 portrait page: never upscale; rotate a wide
 // diagram onto its own page when it would otherwise shrink too far.
 const MM = 96 / 25.4;
-const AVAIL_W = 174 * MM, AVAIL_H = 215 * MM, ROT_W = 238 * MM, ROT_H = 160 * MM, SCALE = 0.8;
+const AVAIL_W = 174 * MM, AVAIL_H = 215 * MM, ROT_W = 238 * MM, ROT_H = 160 * MM, SCALE = 0.85;
 function fitDiagram(svg) {
   const vb = svg.viewBox && svg.viewBox.baseVal;
   if (!vb || !vb.width) return;
@@ -154,38 +151,16 @@ function fitDiagram(svg) {
     svg.setAttribute('height', (h * portraitScale) + 'px');
   }
 }
+// Diagrams arrive as inline SysML v2 SVG (rendered by sysml-svg.mjs); only page fitting happens here.
 window.renderDiagrams = async function () {
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: 'base',
-    securityLevel: 'loose',
-    fontFamily: '"Segoe UI", Arial, sans-serif',
-    themeVariables: { fontSize: '13px', primaryColor: '#ffffff', primaryBorderColor: '#1f4e79', lineColor: '#4a5a6a', textColor: '#1b2733', tertiaryColor: '#f7fbff' },
-    flowchart: { htmlLabels: true, curve: 'basis', nodeSpacing: 34, rankSpacing: 46, padding: 10 },
-    class: { htmlLabels: true },
-    state: { htmlLabels: true },
-  });
   const failures = [];
-  const blocks = [...document.querySelectorAll('pre.mmd')];
-  for (let i = 0; i < blocks.length; i++) {
-    const el = blocks[i];
-    const src = el.textContent;
+  document.querySelectorAll('figure.diagram > svg').forEach((svg, i) => {
     try {
-      const { svg } = await mermaid.render('diagram' + i, src);
-      const holder = document.createElement('div');
-      holder.innerHTML = svg;
-      const node = holder.firstElementChild;
-      el.replaceWith(node);
-      fitDiagram(node);
+      fitDiagram(svg);
     } catch (e) {
-      failures.push({ index: i, error: String(e && e.message || e), src });
-      const box = document.createElement('div');
-      box.className = 'diagram-error';
-      box.textContent = 'Diagram could not be rendered: ' + (e && e.message || e);
-      el.replaceWith(box);
-      document.querySelectorAll('[id^="ddiagram' + i + '"], #diagram' + i).forEach((n) => n.remove());
+      failures.push({ index: i, error: String((e && e.message) || e) });
     }
-  }
+  });
   return failures;
 };
 window.paginate = async function () {
