@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "sysml": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["tools/sysml-mcp.mjs"]
+    }
+  }
+}

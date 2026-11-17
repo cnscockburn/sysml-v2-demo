@@ -22,6 +22,8 @@ This repo is a **SysML v2** model written in the standard textual notation (`.sy
 8. **Port directions are declared on the port def. The receiving side uses the conjugate `~PortDef`**, never a second, mirrored port def.
 9. **Statements end with `;`, bodies use `{}`.** A declaration with no body ends in `;`.
 10. **No `GeometryView`.** The extension does not render it.
+11. **Keywords are not names.** `in`, `out`, `inout`, `end`, `first`, `then`, `state`, `action`, `item`, `port`, `ref`, `all`, `done`, `start` and the other keywords can't be used as identifiers (`a.out` is a syntax error). Use `outlet`, `input`, `result` and the like.
+12. **The parser resolves standard library names even without an import**, so a missing import won't show as an error. Rule 4 still applies: import explicitly.
 
 ## 2. Repository layout
 
@@ -52,13 +54,14 @@ docs/                       language guide and modelling notes
 | Action defs | `UpperCamelCase` verb phrase | `action def ChargeBattery` |
 | Action usages | `lowerCamelCase` verb phrase | `action chargeBattery : ChargeBattery;` |
 | States | `lowerCamelCase` | `state charging;` |
-| Use cases, views, concerns | Quoted sentence-case names | `use case def 'Charge Vehicle'`, `view 'Power IBD'` |
+| Use case defs | `UpperCamelCase` | `use case def ChargeVehicle` |
+| Views, concerns, other usages | `lowerCamelCase`; readable title in `doc` | `view powerInterconnection { doc /* Power IBD */ … }` |
 | Requirement IDs | Short name `<'AREA-NNN'>` | `requirement def <'PWR-001'> BatteryCapacity` |
 | Port defs | Suffix `Port` | `port def ChargePort` |
 | Interface defs | Suffix `Interface` | `interface def ChargeInterface` |
 | Enums | Def `UpperCamelCase`, literals `lowerCamelCase` | `enum def Mode { off; standby; active; }` |
 
-Avoid quoted names for structural elements. They're harder to reference and the extension's `naming-convention` check flags them.
+**No quoted names** (`'Charge Vehicle'`). They're legal SysML and common in the official examples, but the extension's `naming-convention` check flags quoted usage names, and they're harder to reference. Put the readable title in `doc`.
 
 ## 4. Documentation and traceability
 
@@ -93,11 +96,34 @@ The user may edit requirements, docs, typing, multiplicity and satisfy/verify li
 1. Read the relevant guide section and the existing files the change touches.
 2. Add or extend **definitions** first, then **usages** and **configuration**, then **traceability** (satisfy/verify), then **views**.
 3. Check every new name resolves (imported or defined) and every `.` path exists.
-4. **Validate:** run the parser before reporting work as done, and fix every error. Treat warnings (`missing-doc`, `unsatisfied-requirement`, …) as reportable gaps. If the parser can't run, say so plainly and ask the user to check the VS Code Problems panel.
+4. **Validate** every file I created or changed with the `sysml` MCP server (see §7) before reporting work as done:
+   - **Syntax errors and `unresolved-type`: must be zero.** Fix them.
+   - `missing-doc`, `naming-convention`, `invalid-multiplicity`, `duplicate-definition`: fix them.
+   - `unsatisfied-requirement`, `unverified-requirement`, `unused-definition`: allowed while the model is in progress, but list them for the user as open gaps.
+   - If the MCP server isn't available, say so plainly and ask the user to check the VS Code Problems panel. Never claim a model is valid without having validated it.
 5. Tell the user which view to open to see the change.
 6. Commit with a message saying what changed in the model. Push only when asked.
 
-## 7. When unsure
+## 7. The `sysml` MCP server
+
+[`.mcp.json`](.mcp.json) registers the language server's MCP server as `sysml`. [`tools/sysml-mcp.mjs`](tools/sysml-mcp.mjs) launches the `mcpServer.js` from the newest installed `jamied.sysml-v2-support-*` extension, so extension updates need no config change. Override the path with the `SYSML_MCP_SERVER` environment variable.
+
+Useful tools (called as `mcp__sysml__<name>`):
+
+| Tool | Use |
+| --- | --- |
+| `validate` (`code`, `uri`) | Syntax errors plus semantic issues. Run on every changed file. |
+| `getDiagnostics` (`uri`, `code`) | Semantic diagnostics only |
+| `getSymbols`, `getDefinition`, `getReferences`, `getHierarchy` | Navigate what's loaded: check a name exists before referencing it, and find usages before renaming or deleting |
+| `getModelSummary` | Element counts and loaded documents |
+| `preview` (`code`, `diagramType`, `focus`) | A Mermaid diagram, for a quick look outside VS Code |
+
+Notes:
+- Pass the **file's full text as `code`** and its **`file:///` URI as `uri`**. The server checks text, not the disk.
+- The server keeps every document it has been sent in one session workspace. Cross-file references resolve only after the referenced file has been sent too, so for multi-file changes validate the imported files first. `unused-definition` and requirement-coverage warnings depend on what has been loaded.
+- Don't call `getComplexity` unless the user asks about complexity or metrics.
+
+## 8. When unsure
 
 - Prefer the form used in the official `Simple Tests/` or `Vehicle Example/` models.
 - Prefer a simpler, valid construct that renders over a clever one the extension may not draw.

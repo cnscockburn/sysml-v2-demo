@@ -13,3 +13,4 @@ Open this folder in VS Code and install the recommended extension, **SysML v2** 
 | `model/` | The model (`.sysml`), split by concern: requirements, structure, behaviour, configurations, verification, views |
 | `docs/sysml-v2-language-guide.md` | SysML v2 language reference |
 | `CLAUDE.md` | Modelling rules and conventions followed in this repo |
+| `.mcp.json`, `tools/sysml-mcp.mjs` | Registers the extension's SysML MCP server (validation, symbols, diagrams) for Claude Code |

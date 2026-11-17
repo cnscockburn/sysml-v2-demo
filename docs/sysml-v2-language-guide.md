@@ -223,7 +223,7 @@ interface def FuelInterface {
 ```sysml
 flow of Fuel from tank.fuelOut.fuel to engine.fuelIn.fuel;   // typed payload
 flow tank.fuelOut.fuel to engine.fuelIn.fuel;                // untyped shorthand
-succession flow a.out to b.in;                               // flow + ordering
+succession flow pump.outlet to engine.inlet;                 // flow + ordering (note: 'in'/'out' are keywords, not names)
 message of StartCmd from driver to controller;               // message (sequence diagrams)
 ```
 
@@ -272,12 +272,18 @@ action def ProvidePower {
 - Sequencing: `first a then b;`, or inline `then action x;` after a step. `start` and `done` are the built-in begin/end.
 - Named succession: `succession s1 first a then b;`.
 - Control nodes: `fork f;`, `join j;`, `merge m;`, `decide d;`.
-- Decisions:
+- Decisions (inside an action body):
 
   ```sysml
-  then decide;
-      if fuelLow then refuel;
-      else drive;
+  action def Trip {
+      attribute fuelLow : Boolean;
+      first start;
+      then decide;
+          if fuelLow then refuel;
+          else drive;
+      action refuel;
+      action drive;
+  }
   ```
 
 - Signals: `send new StartSignal() to controller;`, `accept s : StartSignal;`, `accept s : Sig via port;`, `accept after 10 [s];`, `accept when condition;`.
