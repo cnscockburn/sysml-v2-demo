@@ -8,7 +8,11 @@ Thumbs.db
 
 # Build / tooling output
 node_modules/
-build/
+# build/ is ignored except the generated spec PDF, which is committed
+build/*
+!build/spec/
+build/spec/*
+!build/spec/*.pdf
 dist/
 out/
 .ipynb_checkpoints/

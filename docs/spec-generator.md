@@ -9,7 +9,9 @@ npm install
 npm run spec
 ```
 
-Output goes to `build/spec/<title>-sds.pdf`, with the intermediate `.html` beside it. Both are git-ignored.
+Output goes to `build/spec/<title>-sds.pdf`, with the intermediate `.html` beside it. The PDF is committed to the repo, so regenerate and commit it whenever the model changes. The `.html` is git-ignored.
+
+The cover's revision is the commit the PDF was generated from (`HEAD`). A PDF committed together with model changes therefore shows the previous commit. Commit the model first, then regenerate and commit the PDF on its own.
 
 Options (pass them after `--`, e.g. `npm run spec -- --out spec.pdf`):
 
