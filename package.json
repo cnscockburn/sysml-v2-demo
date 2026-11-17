@@ -1,0 +1,14 @@
+{
+  "name": "sysml-v2-demo",
+  "private": true,
+  "type": "module",
+  "description": "SysML v2 model tooling",
+  "scripts": {
+    "spec": "node tools/generate-spec.mjs"
+  },
+  "devDependencies": {
+    "mermaid": "^11.17.2",
+    "pagedjs": "^0.4.3",
+    "puppeteer-core": "^24.43.1"
+  }
+}

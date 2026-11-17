@@ -14,3 +14,14 @@ Open this folder in VS Code and install the recommended extension, **SysML v2** 
 | `docs/sysml-v2-language-guide.md` | SysML v2 language reference |
 | `CLAUDE.md` | Modelling rules and conventions followed in this repo |
 | `.mcp.json`, `tools/sysml-mcp.mjs` | Registers the extension's SysML MCP server (validation, symbols, diagrams) for Claude Code |
+
+## System Design Specification
+
+Generate a PDF System Design Specification from the model (diagrams, requirements, traceability, compliance):
+
+```bash
+npm install
+npm run spec
+```
+
+The PDF is written to `build/spec/`. See [docs/spec-generator.md](docs/spec-generator.md).
