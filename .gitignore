@@ -1,0 +1,14 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build / tooling output
+node_modules/
+build/
+dist/
+out/
+.ipynb_checkpoints/
+__pycache__/
+*.log
